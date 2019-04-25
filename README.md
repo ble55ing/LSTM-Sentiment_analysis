@@ -1,13 +1,3 @@
----
-layout: post
-title:  "LSTM实现中文分本情感分析"
-categories: DeepLearing
-tags:  LSTM
-author: ble55ing
----
-
-* content
-{:toc}
 
 ## 背景介绍
 
