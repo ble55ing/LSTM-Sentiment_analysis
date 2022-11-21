@@ -10,14 +10,14 @@ import keras.utils
 from keras import utils as np_utils
 from keras.models import Sequential
 from keras.models import model_from_yaml
-from keras.layers.embeddings import Embedding
-from keras.layers.recurrent import LSTM
+from keras.layers.core import Embedding
+from keras.layers.rnn import LSTM
 from keras.layers.core import Dense, Dropout, Activation
-from sklearn.cross_validation import train_test_split
+from sklearn.model_selection import train_test_split
 
 import yaml
 import sys
-import multiprocessing
+import multiprocess
 
 sys.setrecursionlimit(1000000)
 reload(sys)
