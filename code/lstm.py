@@ -1,11 +1,12 @@
 #! /bin/env python
 # -*- coding: utf-8 -*-
+import importlib
 
 import pandas as pd
 import numpy as np
 
 from gensim.models.word2vec import Word2Vec
-from keras.preprocessing import sequence
+from keras_preprocessing import sequence
 import keras.utils
 from keras import utils as np_utils
 from keras.models import Sequential
@@ -17,11 +18,11 @@ from sklearn.model_selection import train_test_split
 
 import yaml
 import sys
-import multiprocess
+import multiprocessing
 
 sys.setrecursionlimit(1000000)
-reload(sys)
-sys.setdefaultencoding('utf8')
+# importlib.reload(sys)
+# sys.setdefaultencoding('utf8')
 
 np.random.seed()
 
@@ -56,45 +57,7 @@ def loadfile():
 
 def onecut(doc):
     # 将中文分成一个一个的字
-    #print len(doc),ord(doc[0])
-    #print doc[0]+doc[1]+doc[2]
-    ret = [];
-    i=0
-    while i < len(doc):
-        c=""
-        #utf-8的编码格式，小于128的为1个字符，n个字符的化第一个字符的前n+1个字符是1110
-        if ord(doc[i])>=128 and ord(doc[i])<192:
-            print ord(doc[i])
-            assert 1==0#所以其实这里是不应该到达的
-            c = doc[i]+doc[i+1];
-            i=i+2
-            ret.append(c)
-        elif ord(doc[i])>=192 and ord(doc[i])<224:
-            c = doc[i] + doc[i + 1];
-            i = i + 2
-            ret.append(c)
-        elif ord(doc[i])>=224 and ord(doc[i])<240:
-            c = doc[i] + doc[i + 1] + doc[i + 2];
-            i = i + 3
-            ret.append(c)
-        elif ord(doc[i])>=240 and ord(doc[i])<248:
-            c = doc[i] + doc[i + 1] + doc[i + 2]+doc[i + 3];
-            i = i + 4
-            ret.append(c)
-        else :
-            assert ord(doc[i])<128
-            while ord(doc[i])<128:
-                c+=doc[i]
-                i+=1
-                if (i==len(doc)) :
-                    break
-                if doc[i] is " ":
-                    break;
-                elif doc[i] is ".":
-                    break;
-                elif doc[i] is ";":
-                    break;
-            ret.append(c)
+    ret = list(doc.strip())
     '''
     for i in range(len(ret)):
         print ret[i]
@@ -107,30 +70,30 @@ def onecut(doc):
 def one_seq(text):
     text1=[]
     for document in text:
-        if len(document)<3:
-            continue
+        # if len(document)<3:
+        #     continue
         text1.append(onecut(document.replace('\n', '')) )
     return text1
 
 def word2vec_train(X_Vec):
-    model_word = Word2Vec(size=voc_dim,
+    model_word = Word2Vec(vector_size=voc_dim,
                      min_count=min_out,
                      window=window_size,
                      workers=cpu_count,
-                     iter=5)
+                     epochs=5)
     model_word.build_vocab(X_Vec)
-    model_word.train(X_Vec, total_examples=model_word.corpus_count, epochs=model_word.iter)
+    model_word.train(X_Vec, total_examples=model_word.corpus_count, epochs=model_word.epochs)
     model_word.save('../model/Word2Vec.pkl')
 
     #print model_word.wv.vocab.keys()[54],model_word.wv.vocab.keys()
     #print len(model_word.wv.vocab.keys())
     #print model_word ['有']
-    input_dim = len(model_word.wv.vocab.keys()) + 1 #下标0空出来给不够10的字
+    input_dim = len(model_word.wv.index_to_key) + 1 #下标0空出来给不够10的字
     embedding_weights = np.zeros((input_dim, voc_dim)) 
     w2dic={}
-    for i in range(len(model_word.wv.vocab.keys())):
-        embedding_weights[i+1, :] = model_word [model_word.wv.vocab.keys()[i]]
-        w2dic[model_word.wv.vocab.keys()[i]]=i+1
+    for i in range(len(model_word.wv.index_to_key)):
+        embedding_weights[i+1, :] = model_word.wv[model_word.wv.index_to_key[i]]
+        w2dic[model_word.wv.index_to_key[i]]=i+1
     #print embedding_weights
     return input_dim,embedding_weights,w2dic
 
@@ -158,22 +121,22 @@ def train_lstm(input_dim, embedding_weights, x_train, y_train, x_test, y_test):
     model.add(Dropout(0.5))
     model.add(Dense(2))
     model.add(Activation('sigmoid'))
-    print 'Compiling the Model...'
+    print('Compiling the Model...')
     model.compile(loss='binary_crossentropy',#hinge
                   optimizer='adam', metrics=['mae', 'acc'])
 
-    print "Train..."  # batch_size=32
+    print("Train...")  # batch_size=32
     model.fit(x_train, y_train, batch_size=batch_size, epochs=epoch_time, verbose=1)
 
-    print "Evaluate..."
+    print("Evaluate...")
     score = model.evaluate(x_test, y_test,
                            batch_size=batch_size)
 
-    yaml_string = model.to_yaml()
+    yaml_string = model.to_json()
     with open('../model/lstm.yml', 'w') as outfile:
         outfile.write(yaml.dump(yaml_string, default_flow_style=True))
     model.save_weights('../model/lstm.h5')
-    print 'Test score:', score
+    print('Test score:', score)
 
 
 X_Vec, y = loadfile()
